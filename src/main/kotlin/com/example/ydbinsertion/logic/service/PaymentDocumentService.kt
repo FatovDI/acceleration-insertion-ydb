@@ -1,0 +1,328 @@
+package com.example.ydbinsertion.logic.service
+
+import com.example.ydbinsertion.batchinsertion.api.SqlHelper
+import com.example.ydbinsertion.batchinsertion.api.factory.BatchInsertionByEntityFactory
+import com.example.ydbinsertion.batchinsertion.api.factory.BatchInsertionByPropertyFactory
+import com.example.ydbinsertion.batchinsertion.api.factory.SaverType
+import com.example.ydbinsertion.batchinsertion.api.processor.BatchInsertionByPropertyProcessor
+import com.example.ydbinsertion.batchinsertion.utils.getRandomString
+import com.example.ydbinsertion.batchinsertion.utils.logger
+import com.example.ydbinsertion.logic.entity.AccountEntity
+import com.example.ydbinsertion.logic.entity.CurrencyEntity
+import com.example.ydbinsertion.logic.entity.PaymentDocumentEntity
+import com.example.ydbinsertion.logic.repository.AccountRepository
+import com.example.ydbinsertion.logic.repository.CurrencyRepository
+import com.example.ydbinsertion.logic.repository.PaymentDocumentCustomRepository
+import org.springframework.stereotype.Service
+import java.math.BigDecimal
+import java.time.LocalDate
+import java.util.UUID
+import javax.sql.DataSource
+import kotlin.random.Random
+import kotlin.reflect.KMutableProperty1
+
+@OptIn(ExperimentalStdlibApi::class)
+@Service
+class PaymentDocumentService(
+    private val accountRepo: AccountRepository,
+    private val currencyRepo: CurrencyRepository,
+    private val sqlHelper: SqlHelper,
+    private val pdBatchByEntitySaverFactory: BatchInsertionByEntityFactory<PaymentDocumentEntity>,
+    private val pdBatchByPropertySaverFactory: BatchInsertionByPropertyFactory<PaymentDocumentEntity>,
+    private val pdCustomRepository: PaymentDocumentCustomRepository,
+    private val byPropertyProcessor: BatchInsertionByPropertyProcessor,
+    private val dataSource: DataSource,
+) {
+
+    private val log by logger()
+
+    fun saveByInsertConcurrent(count: Int) {
+        val currencies = currencyRepo.findAll()
+        val accounts = accountRepo.findAll()
+
+        pdBatchByEntitySaverFactory.getSaver(SaverType.INSERT_PREPARED_STATEMENT_CONCURRENT).use { saver ->
+            for (i in 0 until count) {
+                saver.addDataForSave(getRandomEntity(null, currencies.random(), accounts.random()))
+            }
+            saver.commit()
+        }
+
+    }
+
+    fun saveByInsertMultiRow(count: Int) {
+        val currencies = currencyRepo.findAll()
+        val accounts = accountRepo.findAll()
+
+        pdBatchByEntitySaverFactory.getSaver(SaverType.INSERT_MULTI_ROW).use { saver ->
+            for (i in 0 until count) {
+                saver.addDataForSave(getRandomEntity(null, currencies.random(), accounts.random()))
+            }
+            saver.commit()
+        }
+
+    }
+
+    fun saveByInsert(count: Int) {
+        val currencies = currencyRepo.findAll()
+        val accounts = accountRepo.findAll()
+
+        pdBatchByEntitySaverFactory.getSaver(SaverType.INSERT).use { saver ->
+            for (i in 0 until count) {
+                saver.addDataForSave(getRandomEntity(null, currencies.random(), accounts.random()))
+            }
+            saver.commit()
+        }
+
+    }
+
+    fun saveByInsertWithPreparedStatementMultiRow(count: Int) {
+        val currencies = currencyRepo.findAll()
+        val accounts = accountRepo.findAll()
+
+        pdBatchByEntitySaverFactory.getSaver(SaverType.INSERT_PREPARED_STATEMENT_MULTI_ROW).use { saver ->
+            for (i in 0 until count) {
+                saver.addDataForSave(getRandomEntity(null, currencies.random(), accounts.random()))
+            }
+            saver.commit()
+        }
+
+    }
+
+    fun saveByInsertWithPreparedStatement(count: Int) {
+        val currencies = currencyRepo.findAll()
+        val accounts = accountRepo.findAll()
+
+        pdBatchByEntitySaverFactory.getSaver(SaverType.INSERT_PREPARED_STATEMENT).use { saver ->
+            for (i in 0 until count) {
+                saver.addDataForSave(getRandomEntity(null, currencies.random(), accounts.random()))
+            }
+            saver.commit()
+        }
+
+    }
+
+    fun saveByInsertWithPreparedStatementAndUnnest(count: Int) {
+        val currencies = currencyRepo.findAll()
+        val accounts = accountRepo.findAll()
+
+        pdBatchByEntitySaverFactory.getSaver(SaverType.INSERT_PREPARED_STATEMENT_UNNEST).use { saver ->
+            for (i in 0 until count) {
+                saver.addDataForSave(getRandomEntity(null, currencies.random(), accounts.random()))
+            }
+            saver.commit()
+        }
+
+    }
+
+    fun update(count: Int) {
+        val listId = sqlHelper.getIdListForUpdate(count, PaymentDocumentEntity::class)
+        val currencies = currencyRepo.findAll()
+        val accounts = accountRepo.findAll()
+
+        pdBatchByEntitySaverFactory.getSaver(SaverType.UPDATE).use { saver ->
+            for (i in 0 until count) {
+                saver.addDataForSave(getRandomEntity(listId[i], currencies.random(), accounts.random()))
+            }
+            saver.commit()
+        }
+
+    }
+
+    fun updatePreparedStatement(count: Int) {
+        val listId = sqlHelper.getIdListForUpdate(count, PaymentDocumentEntity::class)
+        val currencies = currencyRepo.findAll()
+        val accounts = accountRepo.findAll()
+
+        pdBatchByEntitySaverFactory.getSaver(SaverType.UPDATE_PREPARED_STATEMENT).use { saver ->
+            for (i in 0 until count) {
+                saver.addDataForSave(getRandomEntity(listId[i], currencies.random(), accounts.random()))
+            }
+            saver.commit()
+        }
+
+    }
+
+    fun saveByInsertAndPropertyMultiRow(count: Int) {
+        val currencies = currencyRepo.findAll()
+        val accounts = accountRepo.findAll()
+        val data = mutableMapOf<KMutableProperty1<PaymentDocumentEntity, *>, Any?>()
+
+        log.info("start collect insertion $count by property")
+
+        pdBatchByPropertySaverFactory.getSaver(SaverType.INSERT_MULTI_ROW).use { saver ->
+            for (i in 0 until count) {
+                fillRandomDataByKProperty(null, currencies.random(), accounts.random(), data)
+                saver.addDataForSave(data)
+            }
+            saver.commit()
+        }
+
+        log.info("end save insert collection $count by property")
+
+    }
+
+    fun updateByProperty(count: Int) {
+        val listId = sqlHelper.getIdListForUpdate(count, PaymentDocumentEntity::class)
+        val currencies = currencyRepo.findAll()
+        val accounts = accountRepo.findAll()
+        val data = mutableMapOf<KMutableProperty1<PaymentDocumentEntity, *>, Any?>()
+
+        log.info("start update $count by property")
+
+        pdBatchByPropertySaverFactory.getSaver(SaverType.UPDATE).use { saver ->
+            for (i in 0 until count) {
+                fillRandomDataByKProperty(listId[i], currencies.random(), accounts.random(), data)
+                saver.addDataForSave(data)
+            }
+            saver.commit()
+        }
+
+        log.info("end update collection $count by property")
+
+    }
+
+    fun updateByPropertyPreparedStatement(count: Int) {
+        val listId = sqlHelper.getIdListForUpdate(count, PaymentDocumentEntity::class)
+        val currencies = currencyRepo.findAll()
+        val accounts = accountRepo.findAll()
+        val data = mutableMapOf<KMutableProperty1<PaymentDocumentEntity, *>, Any?>()
+
+        log.info("start update $count by property prepared statement")
+
+        pdBatchByPropertySaverFactory.getSaver(SaverType.UPDATE_PREPARED_STATEMENT).use { saver ->
+            for (i in 0 until count) {
+                fillRandomDataByKProperty(listId[i], currencies.random(), accounts.random(), data)
+                saver.addDataForSave(data)
+            }
+            saver.commit()
+        }
+
+        log.info("end update collection $count by property prepared statemen")
+
+    }
+
+    fun updateOnlyOneFieldByProperty(count: Int) {
+        val listId = sqlHelper.getIdListForUpdate(count, PaymentDocumentEntity::class)
+        val data = mutableMapOf<KMutableProperty1<PaymentDocumentEntity, *>, String?>()
+
+        log.info("start update only one field $count by property")
+
+        pdBatchByPropertySaverFactory.getSaver(SaverType.UPDATE).use { saver ->
+            for (i in 0 until count) {
+                data[PaymentDocumentEntity::id] = listId[i].toString()
+                data[PaymentDocumentEntity::prop10] = getRandomString(10)
+                saver.addDataForSave(data)
+            }
+            saver.commit()
+        }
+
+        log.info("end update only one field collection $count by property")
+
+    }
+
+    fun updateOnlyOneFieldByPropertyPreparedStatement(count: Int) {
+        val listId = sqlHelper.getIdListForUpdate(count, PaymentDocumentEntity::class)
+        val data = mutableMapOf<KMutableProperty1<PaymentDocumentEntity, *>, String?>()
+
+        log.info("start update only one field $count by property prepared statement")
+
+        pdBatchByPropertySaverFactory.getSaver(SaverType.UPDATE_PREPARED_STATEMENT).use { saver ->
+            for (i in 0 until count) {
+                data[PaymentDocumentEntity::id] = listId[i].toString()
+                data[PaymentDocumentEntity::prop10] = getRandomString(10)
+                saver.addDataForSave(data)
+            }
+            saver.commit()
+        }
+
+        log.info("end update only one field collection $count by property prepared statement")
+
+    }
+
+    fun updateOnlyOneFieldWithCommonCondition(orderNumber: String, prop10: String): Int {
+        val connection = dataSource.connection
+
+        log.info("start update only one field with common condition")
+
+        val count = byPropertyProcessor.updateDataToDataBasePreparedStatement(
+            PaymentDocumentEntity::class,
+            setOf(PaymentDocumentEntity::prop10),
+            listOf(listOf(prop10, orderNumber)),
+            listOf("order_number"),
+            connection
+        )
+
+        connection.close()
+
+        log.info("end update only one field collection with common condition")
+
+        return count
+
+    }
+
+    fun saveByInsertWithDropIndex(count: Int) {
+        val currencies = currencyRepo.findAll()
+        val accounts = accountRepo.findAll()
+
+        log.info("start drop index before insertion $count")
+
+        val scriptForCreateIndexes = sqlHelper.dropIndex(PaymentDocumentEntity::class)
+
+        pdBatchByEntitySaverFactory.getSaver(SaverType.INSERT_PREPARED_STATEMENT_MULTI_ROW).use { saver ->
+            for (i in 0 until count) {
+                saver.addDataForSave(getRandomEntity(null, currencies.random(), accounts.random()))
+            }
+            saver.commit()
+        }
+
+        log.info("start create index after insertion $count")
+
+        sqlHelper.executeScript(scriptForCreateIndexes)
+
+        log.info("stop create index after insertion $count")
+
+    }
+
+
+    fun findAllByOrderNumberAndOrderDate(orderNumber: String, orderDate: LocalDate): List<PaymentDocumentEntity> {
+        return pdCustomRepository.findAllByOrderNumberAndOrderDate(orderNumber, orderDate)
+    }
+
+    private fun getRandomEntity(
+        id: String?,
+        cur: CurrencyEntity,
+        account: AccountEntity
+    ): PaymentDocumentEntity {
+        return PaymentDocumentEntity(
+            orderDate = LocalDate.now(),
+            orderNumber = getRandomString(10),
+            amount = BigDecimal.valueOf(Random.nextDouble()),
+            cur = cur,
+            expense = Random.nextBoolean(),
+            account = account,
+            paymentPurpose = getRandomString(100),
+            prop10 = getRandomString(10),
+            prop15 = getRandomString(15),
+            prop20 = getRandomString(20),
+        ).apply { this.id = id }
+    }
+
+    private fun fillRandomDataByKProperty(
+        id: String?,
+        cur: CurrencyEntity,
+        account: AccountEntity,
+        data: MutableMap<KMutableProperty1<PaymentDocumentEntity, *>, Any?>
+    ) {
+        id?.let { data[PaymentDocumentEntity::id] = it }
+        data[PaymentDocumentEntity::account] = account.id
+        data[PaymentDocumentEntity::amount] = BigDecimal.valueOf(Random.nextDouble())
+        data[PaymentDocumentEntity::expense] = Random.nextBoolean()
+        data[PaymentDocumentEntity::cur] = cur.code
+        data[PaymentDocumentEntity::orderDate] = LocalDate.now()
+        data[PaymentDocumentEntity::orderNumber] = getRandomString(10)
+        data[PaymentDocumentEntity::paymentPurpose] = getRandomString(100)
+        data[PaymentDocumentEntity::prop10] = getRandomString(10)
+        data[PaymentDocumentEntity::prop15] = getRandomString(15)
+        data[PaymentDocumentEntity::prop20] = getRandomString(20)
+    }
+}

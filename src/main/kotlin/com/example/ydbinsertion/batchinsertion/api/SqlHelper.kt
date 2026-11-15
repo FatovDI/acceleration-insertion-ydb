@@ -1,0 +1,36 @@
+package com.example.ydbinsertion.batchinsertion.api
+
+import com.example.ydbinsertion.logic.entity.BaseEntity
+import java.util.UUID
+import kotlin.reflect.KClass
+
+interface SqlHelper {
+
+    /**
+     * Get list id by count
+     * @param count - count of id
+     * @return List<Long> - list of id
+     */
+    fun nextIdList(count: Int): List<Long>
+
+    /**
+     * Get list id for update by count
+     * @param count - count of id
+     * @param clazz - class entity for get table name
+     * @return List<Long> - list of id
+     */
+    fun getIdListForUpdate(count: Int, clazz: KClass<out BaseEntity>): List<String>
+
+    /**
+     * Drop index by entity
+     * @param clazz - entity class
+     * @return String - string of script to create dropped index
+     */
+    fun dropIndex(clazz: KClass<out BaseEntity>): String
+
+    /**
+     * Execute script
+     * @param script - script for execute
+     */
+    fun executeScript(script: String)
+}

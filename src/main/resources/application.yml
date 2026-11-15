@@ -1,4 +1,4 @@
-# add environment variables to start via Idea -> POSTGRES_DATABASE=postgres;POSTGRES_HOST=localhost;POSTGRES_PASSWORD=postgres;POSTGRES_PORT=5435;POSTGRES_USER_NAME=postgres
+# add environment variables to start via Idea -> YDB_HOST=localhost;YDB_PASSWORD=pass;YDB_PORT=2136;YDB_USER_NAME=ydb
 
 batch_insertion:
   batch_size: 5000
@@ -20,24 +20,29 @@ spring:
         jdbc:
           batch_size: ${batch_insertion.batch_size}
         order_inserts: true
+        dialect: tech.ydb.hibernate.dialect.YdbDialect
 #        format_sql: false
     open-in-view: false
 #  sql:
 #    init:
 #      mode: never
   datasource:
-    username: ${POSTGRES_USER_NAME}
-    password: ${POSTGRES_PASSWORD}
-    url: jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DATABASE}?stringtype=unspecified
+    username: ${YDB_USER_NAME}
+    password: ${YDB_PASSWORD}
+    url: jdbc:ydb:grpc://${YDB_HOST}:${YDB_PORT}/?database=local
+    schemas: "local"
     hikari:
-      schema: "test_insertion"
+      schema: "local"
       maximum-pool-size: 20
-      data-source-properties:
-        reWriteBatchedInserts: true
-#      dataSourceClassName: com.zaxxer.hikari.HikariDataSource
+    driver-class-name: "tech.ydb.jdbc.YdbDriver"
   flyway:
-    enabled: true
+    enabled: false
     baseline-on-migrate: true
     sql-migration-prefix: #empty prefix
     validate-migration-naming: true
-    schemas: "test_insertion"
+#    schemas: "local"
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.xml
+    contexts: all,dev
+

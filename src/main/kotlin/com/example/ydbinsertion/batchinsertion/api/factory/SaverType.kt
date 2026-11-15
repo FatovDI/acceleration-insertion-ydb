@@ -1,0 +1,12 @@
+package com.example.ydbinsertion.batchinsertion.api.factory
+
+enum class SaverType {
+    INSERT,
+    INSERT_MULTI_ROW,
+    INSERT_PREPARED_STATEMENT,
+    INSERT_PREPARED_STATEMENT_MULTI_ROW,
+    INSERT_PREPARED_STATEMENT_UNNEST,
+    INSERT_PREPARED_STATEMENT_CONCURRENT,
+    UPDATE,
+    UPDATE_PREPARED_STATEMENT,
+}

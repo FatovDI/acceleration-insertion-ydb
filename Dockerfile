@@ -13,4 +13,4 @@ FROM openjdk:17-jdk AS runtime-image
 
 EXPOSE 8080
 CMD [ "/bin/bash", "-c", "java -Dcom.sun.management.jmxremote.local.only=false -Djava.rmi.server.hostname=0.0.0.0 -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=5555 -Dcom.sun.management.jmxremote.rmi.port=5555 -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -jar /app.jar"]
-COPY --from=compile-image /app/build/libs/postgresql-insertion.jar /app.jar
+COPY --from=compile-image /app/build/libs/ydb-insertion.jar /app.jar

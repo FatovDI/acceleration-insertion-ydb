@@ -1,1 +1,1 @@
-rootProject.name = "postgresql-insertion"
+rootProject.name = "ydb-insertion"

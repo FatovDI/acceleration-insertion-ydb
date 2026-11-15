@@ -1,7 +1,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-	id("org.springframework.boot") version "2.6.4"
+	id("org.springframework.boot") version "3.1.2"
 	id("io.spring.dependency-management") version "1.1.0"
 	id("org.jetbrains.kotlin.kapt") version "1.8.10"
 	id("me.champeau.jmh") version "0.6.8"
@@ -23,17 +23,18 @@ dependencies {
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.1")
 	implementation("jakarta.persistence:jakarta.persistence-api")
-	implementation("org.flywaydb:flyway-core")
+    implementation("org.liquibase:liquibase-core:4.29.2")
 	implementation("org.openjdk.jmh:jmh-core:1.36")
-	implementation("org.postgresql:postgresql:42.7.5")
-	implementation("org.hibernate:hibernate-jpamodelgen")
+    implementation("tech.ydb.jdbc:ydb-jdbc-driver:2.3.20")
+    implementation("tech.ydb.dialects:hibernate-ydb-dialect:1.4.1")
+    implementation("tech.ydb.dialects:liquibase-ydb-dialect:1.1.1")
 
-	kapt("org.hibernate:hibernate-jpamodelgen")
 	kaptJmh("org.openjdk.jmh:jmh-generator-annprocess:1.36")
 
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testImplementation("org.testcontainers:postgresql:1.17.6")
 	testImplementation("org.testcontainers:junit-jupiter:1.17.6")
+    testImplementation("tech.ydb.test:ydb-junit5-support:2.3.14")
 }
 
 allOpen {

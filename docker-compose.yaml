@@ -6,28 +6,19 @@ services:
       - "8080:8080"
       - "5555:5555"
     environment:
-      POSTGRES_HOST: db
-      POSTGRES_PORT: 5432
-      POSTGRES_DATABASE: postgres
-      POSTGRES_USER_NAME: postgres
-      POSTGRES_PASSWORD: postgres
+      YDB_HOST: db
+      YDB_PORT: 5432
+      YDB_USER_NAME: ydb
+      YDB_PASSWORD: pass
     depends_on:
       - db
 
   db:
-#    image: postgres:latest
-    image: prep_db:1
+    image: cr.yandex/crptqonuodf51kdj7a7d/ydb-enterpise:25.1.4.ent.5
+#    image: prep_db:1
     ports:
-      - "5437:5432"
+      - "2136:2136"
     environment:
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_USER: postgres
-    command: -p 5432
-
-  pgAdmin:
-    image: dpage/pgadmin4
-    ports:
-      - "5050:80"
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: admin
+      YDB_PASSWORD: ydb
+      YDB_USER: pass
+    command: -p 2136
