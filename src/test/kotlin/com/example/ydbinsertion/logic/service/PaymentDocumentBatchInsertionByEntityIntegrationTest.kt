@@ -1,5 +1,6 @@
 package com.example.ydbinsertion.logic.service
 
+import com.example.ydbinsertion.AbstractYdbIntegrationTest
 import com.example.ydbinsertion.batchinsertion.api.factory.BatchInsertionByEntityFactory
 import com.example.ydbinsertion.batchinsertion.api.factory.SaverType
 import com.example.ydbinsertion.logic.entity.PaymentDocumentEntity
@@ -18,7 +19,7 @@ import java.time.LocalDate
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
 @TestPropertySource(locations = ["classpath:application-test.properties"])
-internal class PaymentDocumentBatchInsertionByEntityIntegrationTest {
+internal class PaymentDocumentBatchInsertionByEntityIntegrationTest : AbstractYdbIntegrationTest() {
 
     @Autowired
     lateinit var batchInsertionFactory: BatchInsertionByEntityFactory<PaymentDocumentEntity>

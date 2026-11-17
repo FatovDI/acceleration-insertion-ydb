@@ -9,6 +9,7 @@ import jakarta.persistence.*
 class PaymentDocumentEntity(
     var orderDate: LocalDate? = null,
     var orderNumber: String? = null,
+    @Column(precision = 22, scale = 9)
     var amount: BigDecimal? = null,
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "cur", referencedColumnName = "code")

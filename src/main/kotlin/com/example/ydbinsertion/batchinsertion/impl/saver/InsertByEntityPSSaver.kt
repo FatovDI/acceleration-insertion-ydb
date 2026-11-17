@@ -1,7 +1,7 @@
 package com.example.ydbinsertion.batchinsertion.impl.saver
 
 import com.example.ydbinsertion.batchinsertion.api.processor.BatchInsertionByEntityProcessor
-import com.example.ydbinsertion.batchinsertion.getDataFromEntity
+import com.example.ydbinsertion.batchinsertion.getDataFromEntityForInsert
 import com.example.ydbinsertion.logic.entity.BaseEntity
 import java.sql.Connection
 import kotlin.reflect.KClass
@@ -16,7 +16,7 @@ open class InsertByEntityPSSaver<E: BaseEntity>(
     private val dataForInsert = mutableListOf<List<Any?>>()
 
     override fun addDataForSave(entity: E) {
-        dataForInsert.add(getDataFromEntity(entity))
+        dataForInsert.add(getDataFromEntityForInsert(entity))
         super.addDataForSave(entity)
     }
 

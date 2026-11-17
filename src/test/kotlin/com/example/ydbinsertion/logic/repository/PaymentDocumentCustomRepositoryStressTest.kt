@@ -1,5 +1,6 @@
 package com.example.ydbinsertion.logic.repository
 
+import com.example.ydbinsertion.AbstractYdbIntegrationTest
 import org.assertj.core.api.Assertions
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
@@ -19,7 +20,7 @@ import java.time.LocalDate
 @TestPropertySource(locations = ["classpath:application-test.properties"])
 @Execution(ExecutionMode.CONCURRENT)
 @Tag("stressTest")
-internal class PaymentDocumentCustomRepositoryStressTest {
+internal class PaymentDocumentCustomRepositoryStressTest : AbstractYdbIntegrationTest() {
 
     @Autowired
     lateinit var service: PaymentDocumentTestService

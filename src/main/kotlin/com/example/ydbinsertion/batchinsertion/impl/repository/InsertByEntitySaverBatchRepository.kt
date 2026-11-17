@@ -76,6 +76,7 @@ abstract class InsertByEntitySaverBatchRepository<E : BaseEntity>(
                             if (status != 0) {
                                 handler.rollback()
                             }
+                            handler.close()
                             TransactionSynchronizationManager.unbindResource(concurrentSaverHandlerName)
                         }
                     }

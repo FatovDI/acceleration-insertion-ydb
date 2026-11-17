@@ -11,13 +11,14 @@ open class InsertByPropertyPSSaver<E: BaseEntity>(
     private val entityClass: KClass<E>,
     conn: Connection,
     batchSize: Int
-) : AbstractBatchInsertionByPropertySaver<E>(conn, batchSize) {
+) : AbstractBatchInsertionByPropertySaver<E>(conn, batchSize, entityClass) {
 
     private val dataForInsert = mutableListOf<List<Any?>>()
 
     override fun addDataForSave(data: Map<out KProperty1<E, *>, Any?>) {
-        dataForInsert.add(data.values.toList())
-        super.addDataForSave(data)
+        val dataWithId = addIdIfAbsent(data)
+        dataForInsert.add(dataWithId.values.toList())
+        super.addDataForSave(dataWithId)
     }
 
     override fun saveData() {

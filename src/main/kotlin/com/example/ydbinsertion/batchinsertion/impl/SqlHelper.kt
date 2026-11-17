@@ -5,7 +5,6 @@ import com.example.ydbinsertion.batchinsertion.getTableName
 import com.example.ydbinsertion.logic.entity.BaseEntity
 import org.springframework.stereotype.Component
 import java.sql.ResultSet
-import java.util.UUID
 import javax.sql.DataSource
 import kotlin.reflect.KClass
 
@@ -14,61 +13,18 @@ class SqlHelper(
     private val dataSource: DataSource
 ): SqlHelper {
 
-    override fun nextIdList(count: Int): List<Long> {
-        return dataSource.connection.use { conn ->
-            conn
-                .prepareStatement("SELECT nextval('seq_id') FROM generate_series(1, ?)")
-                .use { stmnt ->
-                    stmnt.setInt(1, count)
-                    stmnt.executeQuery().toList { it.getLong(1) }
-                }
-        }
-    }
-
     override fun getIdListForUpdate(count: Int, clazz: KClass<out BaseEntity>): List<String> {
         return dataSource.connection.use { conn ->
             conn
-                .prepareStatement("SELECT id FROM ${getTableName(clazz)} limit ?")
+                .createStatement()
                 .use { stmnt ->
-//                    stmnt.setString(1, tableName)
-                    stmnt.setInt(1, count)
-                    stmnt.executeQuery().toList { it.getString(1) }
+                    stmnt.executeQuery("SELECT id FROM ${getTableName(clazz)} LIMIT $count")
+                        .toList { it.getString(1) }
                 }
         }
     }
 
-    override fun dropIndex(clazz: KClass<out BaseEntity>): String {
-
-        val scriptForCreate: String
-
-        dataSource.connection.use { conn ->
-            val indexMap =
-                conn
-                    .prepareStatement(
-                        """
-                        SELECT 
-                            indexname, 
-                            indexdef 
-                        FROM pg_indexes 
-                        WHERE schemaname = ? AND tablename = ? AND indexdef LIKE 'CREATE INDEX%'
-                        """
-                    )
-                    .use { stmnt ->
-                        stmnt.setString(1, conn.schema)
-                        stmnt.setString(2, getTableName(clazz))
-                        stmnt.executeQuery().toMap { it.getString(1) to it.getString(2) }
-                    }
-            conn.createStatement().use { stmnt ->
-                stmnt.executeLargeUpdate(
-                    indexMap.keys.joinToString("\n") { s ->
-                        "DROP INDEX $s;"
-                    }
-                )
-            }
-            scriptForCreate = indexMap.values.joinToString("\n") { s -> "$s;" }
-        }
-        return scriptForCreate
-    }
+    override fun dropIndex(clazz: KClass<out BaseEntity>): String = ""
 
 
     override fun executeScript(script: String) {

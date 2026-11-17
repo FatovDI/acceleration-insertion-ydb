@@ -13,7 +13,7 @@ open class UpdateByPropertySaver<E: BaseEntity>(
     private val entityClass: KClass<E>,
     conn: Connection,
     batchSize: Int
-) : AbstractBatchInsertionByPropertySaver<E>(conn, batchSize) {
+) : AbstractBatchInsertionByPropertySaver<E>(conn, batchSize, entityClass) {
 
     private val nullValue = "NULL"
     private val dataForUpdate = mutableListOf<String>()
@@ -21,7 +21,7 @@ open class UpdateByPropertySaver<E: BaseEntity>(
         ?: throw BatchInsertionException("Id should be defined in entity for update")
 
     override fun addDataForSave(data: Map<out KProperty1<E, *>, Any?>) {
-        val id = data[idProp]?.toString()?.toLongOrNull()
+        val id = data[idProp]?.toString()
             ?: throw BatchInsertionException("Id should be not null for update")
 
         dataForUpdate.add(processor.getStringForUpdate(data, id, nullValue))

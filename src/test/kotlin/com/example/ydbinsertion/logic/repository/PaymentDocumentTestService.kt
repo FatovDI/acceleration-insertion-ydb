@@ -1,7 +1,6 @@
 package com.example.ydbinsertion.logic.repository
 
 import com.example.ydbinsertion.batchinsertion.api.processor.BatchInsertionByEntityProcessor
-import com.example.ydbinsertion.logic.entity.AccountEntity
 import com.example.ydbinsertion.logic.entity.PaymentDocumentEntity
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Lazy
@@ -161,25 +160,6 @@ class PaymentDocumentTestService(
                 )
             )
         }
-
-    }
-
-    @Transactional
-    fun saveSeveralDataInTwoTransactionWithRequiredNewAndIncorrectData(count: Int, orderNumber: String, orderDate: LocalDate) {
-
-        val paymentPurpose = "save entity via copy method"
-
-        pdCustomRepository.save(
-            PaymentDocumentEntity(
-                account = AccountEntity().apply { id = 1 },
-                paymentPurpose = paymentPurpose,
-                orderNumber = orderNumber,
-                orderDate = orderDate,
-                prop15 = "END"
-            )
-        )
-
-        selfService.saveSeveralDataInRequiredNewTransaction(count, orderNumber, orderDate)
 
     }
 

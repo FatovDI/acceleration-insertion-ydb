@@ -1,5 +1,6 @@
 package com.example.ydbinsertion.batchinsertion.impl.processor
 
+import com.example.ydbinsertion.AbstractYdbIntegrationTest
 import com.example.ydbinsertion.batchinsertion.api.processor.BatchInsertionByEntityProcessor
 import com.example.ydbinsertion.batchinsertion.getDataFromEntity
 import com.example.ydbinsertion.logic.entity.AccountEntity
@@ -18,9 +19,8 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.TestPropertySource
 import java.math.BigDecimal
 import java.sql.Connection
-import java.sql.Date
 import java.time.LocalDate
-import javax.persistence.EntityManager
+import jakarta.persistence.EntityManager
 import javax.sql.DataSource
 
 
@@ -29,7 +29,7 @@ import javax.sql.DataSource
 @TestPropertySource(locations = ["classpath:application-test.properties"])
 @EnableAutoConfiguration
 @Suppress("UNCHECKED_CAST")
-internal class YDBBatchInsertionByEntityProcessorTest {
+internal class YDBBatchInsertionByEntityProcessorTest : AbstractYdbIntegrationTest() {
 
     @Autowired
     lateinit var dataSource: DataSource
@@ -68,13 +68,13 @@ internal class YDBBatchInsertionByEntityProcessorTest {
         processor.insertDataToDataBaseMultiRow(clazz = PaymentDocumentEntity::class, data = dataForInsert, conn = conn)
         val savedDoc =
             em.createNativeQuery("select id, payment_purpose  from payment_document where prop_10 = '$prop10'").resultList as List<Array<Any>>
-        val pdId = savedDoc.first()[0].toString().toLong()
+        val pdId = savedDoc.first()[0].toString()
         assertThat(pdId).isNotNull
         assertThat(savedDoc.first()[1]).isNull()
 
         val dataForUpdate = mutableListOf<String>()
         val dataUpdate = PaymentDocumentEntity(
-            account = AccountEntity().apply { id = accountId.toLong() },
+            account = AccountEntity().apply { id = accountId },
             prop15 = "END",
             paymentPurpose = paymentPurpose,
             prop10 = prop10,
@@ -96,7 +96,7 @@ internal class YDBBatchInsertionByEntityProcessorTest {
         val prop10 = params.second + "8_b"
         val accountId = em.createNativeQuery("select id from account limit 1").singleResult.toString()
         val data = PaymentDocumentEntity(
-            account = AccountEntity().apply { id = accountId.toLong() },
+            account = AccountEntity().apply { id = accountId },
             prop15 = "END",
             paymentPurpose = paymentPurpose,
             prop10 = prop10,
@@ -127,13 +127,13 @@ internal class YDBBatchInsertionByEntityProcessorTest {
         processor.insertDataToDataBasePreparedStatement(clazz = PaymentDocumentEntity::class, data = dataForInsert, conn = conn)
         val savedDoc =
             em.createNativeQuery("select id, payment_purpose  from payment_document where prop_10 = '$prop10'").resultList as List<Array<Any>>
-        val pdId = savedDoc.first()[0].toString().toLong()
+        val pdId = savedDoc.first()[0].toString()
         assertThat(pdId).isNotNull
         assertThat(savedDoc.first()[1]).isNull()
 
         val dataForUpdate = mutableListOf<List<Any?>>()
         val dataUpdate = PaymentDocumentEntity(
-            account = AccountEntity().apply { id = accountId.toLong() },
+            account = AccountEntity().apply { id = accountId },
             prop15 = "END",
             paymentPurpose = paymentPurpose,
             prop10 = prop10,
@@ -175,7 +175,7 @@ internal class YDBBatchInsertionByEntityProcessorTest {
         val savedDoc =
             em.createNativeQuery("select id, payment_purpose, prop_15, prop_10, cur  from payment_document where prop_15 = 'NEW_PS_upd'").resultList as List<Array<Any>>
         assertThat(savedDoc.size).isEqualTo(testData.size)
-        val pdIds = savedDoc.map { it.first().toString().toLong() }
+        val pdIds = savedDoc.map { it.first().toString() }
         assertThat(pdIds.size).isEqualTo(testData.size)
         savedDoc.forEach {
             assertThat(it[1]).isNull()
@@ -185,7 +185,7 @@ internal class YDBBatchInsertionByEntityProcessorTest {
         testData.forEachIndexed { idx, d ->
             dataForUpdate.add(getDataFromEntity(
                 PaymentDocumentEntity(
-                    account = AccountEntity().apply { id = accountId.toLong() },
+                    account = AccountEntity().apply { id = accountId },
                     prop15 = prop15,
                     paymentPurpose = paymentPurpose,
                     prop10 = d.second,
@@ -230,7 +230,7 @@ internal class YDBBatchInsertionByEntityProcessorTest {
         processor.insertDataToDataBaseMultiRow(clazz = PaymentDocumentEntity::class, data = dataForInsert, conn = conn)
 
         val savedDoc =
-            em.createNativeQuery("select payment_purpose, prop_15, prop_10, cur  from payment_document where prop_15 = 'NEW' and cur = '$cur'").resultList as List<Array<Any>>
+            em.createNativeQuery("select payment_purpose, prop_15, prop_10, cur  from payment_document where prop_15 = 'NEW' and cur = '$cur' order by prop_10").resultList as List<Array<Any>>
         assertThat(savedDoc.size).isEqualTo(testData.size)
         testData.forEachIndexed { index, pair ->
             assertThat(savedDoc[index][0]).isEqualTo(pair.first)
@@ -259,7 +259,7 @@ internal class YDBBatchInsertionByEntityProcessorTest {
         processor.insertDataToDataBasePreparedStatement(clazz = PaymentDocumentEntity::class, data = dataForInsert, conn = conn)
 
         val savedDoc =
-            em.createNativeQuery("select payment_purpose, prop_15, prop_10, cur  from payment_document where prop_15 = '$prop15' and cur = '$cur'").resultList as List<Array<Any>>
+            em.createNativeQuery("select payment_purpose, prop_15, prop_10, cur  from payment_document where prop_15 = '$prop15' and cur = '$cur' order by prop_10").resultList as List<Array<Any>>
         assertThat(savedDoc.size).isEqualTo(testData.size)
         testData.forEachIndexed { index, pair ->
             assertThat(savedDoc[index][0]).isEqualTo(pair.first)
@@ -277,7 +277,7 @@ internal class YDBBatchInsertionByEntityProcessorTest {
         dataForInsert.add(
             getDataFromEntity(
                 PaymentDocumentEntity(
-                    account = AccountEntity().apply { id = accountId.toLong() },
+                    account = AccountEntity().apply { id = accountId },
                     expense = false,
                     amount = BigDecimal("10.11"),
                     cur = CurrencyEntity(code = "RUB"),
@@ -312,8 +312,8 @@ internal class YDBBatchInsertionByEntityProcessorTest {
         assertThat(savedDoc.first()[0].toString()).isEqualTo(accountId)
         assertThat(savedDoc.first()[1]).isEqualTo(false)
         assertThat(savedDoc.first()[2]).isEqualTo("RUB")
-        assertThat(savedDoc.first()[3]).isEqualTo(BigDecimal("10.11"))
-        assertThat(savedDoc.first()[4]).isEqualTo(Date.valueOf("2023-01-01"))
+        assertThat(savedDoc.first()[3] as BigDecimal).isEqualByComparingTo(BigDecimal("10.11"))
+        assertThat(savedDoc.first()[4]).isEqualTo(LocalDate.parse("2023-01-01"))
         assertThat(savedDoc.first()[5]).isEqualTo("123")
         assertThat(savedDoc.first()[6]).isEqualTo("1345")
         assertThat(savedDoc.first()[7]).isEqualTo("END")
@@ -346,7 +346,7 @@ internal class YDBBatchInsertionByEntityProcessorTest {
         )
 
         val savedDoc =
-            em.createNativeQuery("select payment_purpose, prop_15, prop_10, cur  from payment_document where prop_15 = '$prop15' and cur = '$cur'").resultList as List<Array<Any>>
+            em.createNativeQuery("select payment_purpose, prop_15, prop_10, cur  from payment_document where prop_15 = '$prop15' and cur = '$cur' order by prop_10").resultList as List<Array<Any>>
         assertThat(savedDoc.size).isEqualTo(testData.size)
         testData.forEachIndexed { index, pair ->
             assertThat(savedDoc[index][0]).isEqualTo(pair.first)
@@ -365,7 +365,7 @@ internal class YDBBatchInsertionByEntityProcessorTest {
         dataForInsert.add(
             getDataFromEntity(
                 PaymentDocumentEntity(
-                    account = AccountEntity().apply { id = accountId.toLong() },
+                    account = AccountEntity().apply { id = accountId },
                     expense = false,
                     amount = BigDecimal("10.11"),
                     cur = CurrencyEntity(code = "RUB"),
@@ -405,8 +405,8 @@ internal class YDBBatchInsertionByEntityProcessorTest {
         assertThat(savedDoc.first()[0].toString()).isEqualTo(accountId)
         assertThat(savedDoc.first()[1]).isEqualTo(false)
         assertThat(savedDoc.first()[2]).isEqualTo("RUB")
-        assertThat(savedDoc.first()[3]).isEqualTo(BigDecimal("10.11"))
-        assertThat(savedDoc.first()[4]).isEqualTo(Date.valueOf("2023-01-01"))
+        assertThat(savedDoc.first()[3] as BigDecimal).isEqualByComparingTo(BigDecimal("10.11"))
+        assertThat(savedDoc.first()[4]).isEqualTo(LocalDate.parse("2023-01-01"))
         assertThat(savedDoc.first()[5]).isEqualTo("123")
         assertThat(savedDoc.first()[6]).isEqualTo("1345")
         assertThat(savedDoc.first()[7]).isEqualTo("END")

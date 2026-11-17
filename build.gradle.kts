@@ -32,8 +32,7 @@ dependencies {
 	kaptJmh("org.openjdk.jmh:jmh-generator-annprocess:1.36")
 
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
-	testImplementation("org.testcontainers:postgresql:1.17.6")
-	testImplementation("org.testcontainers:junit-jupiter:1.17.6")
+    testImplementation("org.testcontainers:testcontainers:1.20.6")
     testImplementation("tech.ydb.test:ydb-junit5-support:2.3.14")
 }
 

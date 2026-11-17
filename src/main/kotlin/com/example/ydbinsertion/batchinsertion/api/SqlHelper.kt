@@ -1,17 +1,9 @@
 package com.example.ydbinsertion.batchinsertion.api
 
 import com.example.ydbinsertion.logic.entity.BaseEntity
-import java.util.UUID
 import kotlin.reflect.KClass
 
 interface SqlHelper {
-
-    /**
-     * Get list id by count
-     * @param count - count of id
-     * @return List<Long> - list of id
-     */
-    fun nextIdList(count: Int): List<Long>
 
     /**
      * Get list id for update by count

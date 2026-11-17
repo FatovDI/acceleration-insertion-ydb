@@ -32,7 +32,7 @@ interface BatchInsertionByPropertyProcessor {
      * @param nullValue - string to define null value
      * @return String - string for update
      */
-    fun getStringForUpdate(data: Map<out KProperty1<out BaseEntity, *>, Any?>, id: Long, nullValue: String): String
+    fun getStringForUpdate(data: Map<out KProperty1<out BaseEntity, *>, Any?>, id: String, nullValue: String): String
 
     /**
      * get string for update by map of property

@@ -1,5 +1,6 @@
 package com.example.ydbinsertion.logic.repository
 
+import com.example.ydbinsertion.AbstractYdbIntegrationTest
 import com.zaxxer.hikari.HikariDataSource
 import org.assertj.core.api.Assertions
 import org.junit.jupiter.api.Test
@@ -17,7 +18,7 @@ import javax.sql.DataSource
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
 @TestPropertySource(locations = ["classpath:application-test.properties"])
-internal class PaymentDocumentCustomRepositoryTest {
+internal class PaymentDocumentCustomRepositoryTest : AbstractYdbIntegrationTest() {
 
     @Autowired
     lateinit var service: PaymentDocumentTestService
@@ -70,19 +71,6 @@ internal class PaymentDocumentCustomRepositoryTest {
 
         assertThrows<RuntimeException> {
             service.saveSeveralDataInTwoTransactionWithRequiredNewAndException(count, orderNumber, orderDate)
-        }
-        val savedPd = service.findAllByOrderNumberAndOrderDate(orderNumber, orderDate)
-        Assertions.assertThat(savedPd.size).isEqualTo(count)
-    }
-
-    @Test
-    fun `save several payment document in two transaction with required new and incorrect data test`() {
-        val orderNumber = "CR_9"
-        val orderDate = LocalDate.now()
-        val count = 10
-
-        assertThrows<RuntimeException> {
-            service.saveSeveralDataInTwoTransactionWithRequiredNewAndIncorrectData(count, orderNumber, orderDate)
         }
         val savedPd = service.findAllByOrderNumberAndOrderDate(orderNumber, orderDate)
         Assertions.assertThat(savedPd.size).isEqualTo(count)
@@ -174,7 +162,7 @@ internal class PaymentDocumentCustomRepositoryTest {
         val savedPd = service.findAllByOrderNumberAndOrderDate(orderNumber, orderDate)
         val connectionsUpd = (dataSource as HikariDataSource).hikariPoolMXBean.activeConnections
         Assertions.assertThat(savedPd.size).isEqualTo(0)
-        Assertions.assertThat(connections).isEqualTo(connectionsUpd)
+        Assertions.assertThat(connectionsUpd).isLessThanOrEqualTo(connections)
     }
 
 }

@@ -7,7 +7,7 @@ services:
       - "5555:5555"
     environment:
       YDB_HOST: db
-      YDB_PORT: 5432
+      YDB_PORT: 2136
       YDB_USER_NAME: ydb
       YDB_PASSWORD: pass
     depends_on:
@@ -15,10 +15,10 @@ services:
 
   db:
     image: cr.yandex/crptqonuodf51kdj7a7d/ydb-enterpise:25.1.4.ent.5
-#    image: prep_db:1
+    hostname: db
     ports:
       - "2136:2136"
     environment:
-      YDB_PASSWORD: ydb
-      YDB_USER: pass
+      YDB_USER: ydb
+      YDB_PASSWORD: pass
     command: -p 2136

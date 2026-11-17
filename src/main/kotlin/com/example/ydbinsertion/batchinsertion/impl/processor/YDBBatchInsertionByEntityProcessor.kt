@@ -4,9 +4,11 @@ import com.example.ydbinsertion.batchinsertion.*
 import com.example.ydbinsertion.batchinsertion.api.processor.BatchInsertionByEntityProcessor
 import com.example.ydbinsertion.batchinsertion.api.processor.DataForUpdate
 import com.example.ydbinsertion.logic.entity.BaseEntity
+import com.example.ydbinsertion.logic.entity.short
 import org.springframework.stereotype.Component
 import java.io.BufferedWriter
 import java.sql.Connection
+import java.util.UUID
 import kotlin.reflect.KClass
 
 @Component
@@ -22,11 +24,16 @@ class YDBBatchInsertionByEntityProcessor(
         writer.newLine()
     }
 
-    override fun getStringForUpdate(data: BaseEntity) =
-        getStringForInsert(data).let { "($it) where id = '${data.id}'" }
+    override fun getStringForUpdate(data: BaseEntity): String =
+        getFieldsWithoutId(data::class)
+            .joinToString(", ") { field ->
+                field.trySetAccessible()
+                "${getColumnName(field)} = ${toSqlLiteral(getDataFromEntityByField(data, field), field)}"
+            }
+            .let { "$it where id = ${toSqlLiteral(ensureId(data))}" }
 
     override fun getStringForInsert(data: BaseEntity) =
-        getStringForInsert(getStringDataFromEntity(data), nullValue)
+        getInsertValuesString(data)
 
     /**
      * save list data with insert method and prepared statement
@@ -39,7 +46,13 @@ class YDBBatchInsertionByEntityProcessor(
         data: List<List<Any?>>,
         conn: Connection
     ) {
-        insertDataToDataBasePreparedStatementMultiRow(getTableName(clazz), getColumnsByClass(clazz), data, conn)
+        insertDataToDataBasePreparedStatementMultiRow(
+            getTableName(clazz),
+            getInsertColumnsByClass(clazz),
+            withIds(clazz, data),
+            conn,
+            getInsertColumnTypesByClass(clazz)
+        )
     }
 
     /**
@@ -53,7 +66,13 @@ class YDBBatchInsertionByEntityProcessor(
         data: List<List<Any?>>,
         conn: Connection
     ) {
-        insertDataToDataBasePreparedStatementBasic(getTableName(clazz), getColumnsByClass(clazz), data, conn)
+        insertDataToDataBasePreparedStatementBasic(
+            getTableName(clazz),
+            getInsertColumnsByClass(clazz),
+            withIds(clazz, data),
+            conn,
+            getInsertColumnTypesByClass(clazz)
+        )
     }
 
 
@@ -63,7 +82,20 @@ class YDBBatchInsertionByEntityProcessor(
         pgTypes: List<String>,
         conn: Connection
     ) {
-        insertDataToDataBasePreparedStatementAndUnnest(getTableName(clazz), getColumnsByClass(clazz), data, pgTypes, conn)
+        insertDataToDataBasePreparedStatementMultiRow(
+            getTableName(clazz),
+            getInsertColumnsByClass(clazz),
+            withIds(clazz, data.map { it.map { value -> value as Any? } }),
+            conn,
+            getInsertColumnTypesByClass(clazz)
+        )
+    }
+
+    private fun withIds(clazz: KClass<out BaseEntity>, data: List<List<Any?>>): List<List<Any?>> {
+        val columnsSize = getInsertColumnsByClass(clazz).size
+        return data.map { row ->
+            if (row.size == columnsSize) row else row + UUID.randomUUID().short()
+        }
     }
 
     /**
@@ -72,9 +104,8 @@ class YDBBatchInsertionByEntityProcessor(
      * @param conn - DB connection
      * @return List<String> - list with pg type name
      */
-    override fun getPgTypes(clazz: KClass<out BaseEntity>, conn: Connection): List<String> {
-        return getPgTypes(getTableName(clazz), getColumnsByClass(clazz), conn)
-    }
+    override fun getPgTypes(clazz: KClass<out BaseEntity>, conn: Connection): List<String> =
+        List(getInsertColumnsByClass(clazz).size) { "String" }
 
     override fun updateDataToDataBasePreparedStatement(
         clazz: KClass<out BaseEntity>,

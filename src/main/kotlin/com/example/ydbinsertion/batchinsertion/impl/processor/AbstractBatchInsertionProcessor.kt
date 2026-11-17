@@ -4,7 +4,17 @@ import com.example.ydbinsertion.batchinsertion.*
 import com.example.ydbinsertion.batchinsertion.api.processor.DataForUpdate
 import com.example.ydbinsertion.logic.entity.BaseEntity
 import java.io.DataOutputStream
+import java.lang.reflect.Field
+import java.math.BigDecimal
 import java.sql.Connection
+import java.sql.Statement
+import java.sql.Types
+import java.time.LocalDate
+import java.time.LocalDateTime
+import jakarta.persistence.Column
+import tech.ydb.table.values.DecimalType
+import tech.ydb.table.values.PrimitiveType
+import tech.ydb.table.values.Value
 import kotlin.reflect.KClass
 
 /**
@@ -21,7 +31,7 @@ abstract class AbstractBatchInsertionProcessor {
      * @param conn - DB connection
      */
     fun insertDataToDataBase(clazz: KClass<out BaseEntity>, data: List<String>, conn: Connection) {
-        insertDataToDataBase(getTableName(clazz), getColumnsStringByClass(clazz), data, conn)
+        insertDataToDataBase(getTableName(clazz), getInsertColumnsStringByClass(clazz), data, conn)
     }
 
     /**
@@ -31,7 +41,7 @@ abstract class AbstractBatchInsertionProcessor {
      * @param conn - DB connection
      */
     fun insertDataToDataBaseMultiRow(clazz: KClass<out BaseEntity>, data: List<String>, conn: Connection) {
-        insertDataToDataBaseMultiRow(getTableName(clazz), getColumnsStringByClass(clazz), data, conn)
+        insertDataToDataBaseMultiRow(getTableName(clazz), getInsertColumnsStringByClass(clazz), data, conn)
     }
 
     /**
@@ -79,6 +89,79 @@ abstract class AbstractBatchInsertionProcessor {
             }
     }
 
+    /**
+     * Convert value to a YQL literal with explicit type where YDB requires it.
+     */
+    fun toSqlLiteral(value: Any?, field: Field? = null): String = when (value) {
+        null -> "NULL"
+        is Boolean -> value.toString()
+        is BigDecimal -> {
+            val column = field?.getAnnotation(Column::class.java)
+            val precision = column?.precision?.takeIf { it > 0 } ?: value.precision()
+            val scale = column?.scale?.takeIf { it >= 0 } ?: value.scale()
+            "Decimal(\"${value.toPlainString()}\", $precision, $scale)"
+        }
+        is Number -> value.toString()
+        is LocalDate -> "Date(\"$value\")"
+        is LocalDateTime -> "DateTime(\"$value\")"
+        is String -> when (field?.type) {
+            LocalDate::class.java -> "Date(\"$value\")"
+            LocalDateTime::class.java -> "DateTime(\"$value\")"
+            BigDecimal::class.java -> {
+                val column = field.getAnnotation(Column::class.java)
+                val precision = column?.precision?.takeIf { it > 0 } ?: 22
+                val scale = column?.scale?.takeIf { it >= 0 } ?: 9
+                "Decimal(\"$value\", $precision, $scale)"
+            }
+            java.lang.Boolean::class.java, java.lang.Boolean.TYPE -> value
+            java.lang.Integer::class.java, java.lang.Integer.TYPE,
+            java.lang.Long::class.java, java.lang.Long.TYPE,
+            java.lang.Double::class.java, java.lang.Double.TYPE,
+            java.lang.Float::class.java, java.lang.Float.TYPE -> value
+            else -> "\"${escapeString(value)}\""
+        }
+        else -> "\"${escapeString(value.toString())}\""
+    }
+
+    private fun escapeString(value: String) = value
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+        .replace("\t", "\\t")
+
+    /**
+     * YDB JDBC can not infer a type for null values, so pass a typed empty optional.
+     */
+    fun typedNullValue(type: String): Value<*> {
+        val ydbType = when {
+            type == "Utf8" || type == "Text" -> PrimitiveType.Text
+            type == "Bytes" -> PrimitiveType.Bytes
+            type == "Bool" -> PrimitiveType.Bool
+            type == "Date" -> PrimitiveType.Date
+            type == "Datetime" -> PrimitiveType.Datetime
+            type == "Timestamp" -> PrimitiveType.Timestamp
+            type == "Int32" -> PrimitiveType.Int32
+            type == "Int64" -> PrimitiveType.Int64
+            type == "Double" -> PrimitiveType.Double
+            type == "Float" -> PrimitiveType.Float
+            type.startsWith("Decimal(") -> {
+                val args = type.removePrefix("Decimal(").removeSuffix(")").split(",").map { it.trim() }
+                DecimalType.of(args[0].toInt(), args[1].toInt())
+            }
+            else -> PrimitiveType.Text
+        }
+        return ydbType.makeOptional().emptyValue()
+    }
+
+    /**
+     * get values string for insert by entity with generated id
+     */
+    fun getInsertValuesString(entity: BaseEntity): String =
+        getInsertValuesFromEntity(entity).joinToString(",") { (field, value) ->
+            toSqlLiteral(value, field)
+        }
+
 
     /**
      * start save binary data for copy method
@@ -119,6 +202,7 @@ abstract class AbstractBatchInsertionProcessor {
      * @param conn - DB connection
      */
     fun insertDataToDataBase(tableName: String, columns: String, data: List<String>, conn: Connection) {
+        if (data.isEmpty()) return
 
         conn.createStatement().use { stmt ->
             data.map { s ->
@@ -136,9 +220,10 @@ abstract class AbstractBatchInsertionProcessor {
      * @param conn - DB connection
      */
     fun insertDataToDataBaseMultiRow(tableName: String, columns: String, data: List<String>, conn: Connection) {
+        if (data.isEmpty()) return
 
         conn.createStatement().use { stmt ->
-            stmt.executeLargeUpdate(
+            stmt.executeUpdate(
                 "INSERT INTO $tableName ($columns) VALUES ${
                     data
                         .mapIndexed { index, s -> "($s)${if (index == data.lastIndex) ";" else ","}" }
@@ -159,10 +244,14 @@ abstract class AbstractBatchInsertionProcessor {
         tableName: String,
         columns: List<String>,
         data: List<Collection<Any?>>,
-        conn: Connection
+        conn: Connection,
+        columnTypes: List<String>? = null
     ) {
+        if (data.isEmpty()) return
 
-        val params = columns.joinToString(", ") { "?" }
+        val params = columns.mapIndexed { idx, _ ->
+            columnTypes?.get(idx)?.let { "CAST(? AS $it)" } ?: "?"
+        }.joinToString(", ")
 
         conn.prepareStatement(
             "INSERT INTO $tableName (${columns.joinToString(",")}) VALUES ${
@@ -171,12 +260,13 @@ abstract class AbstractBatchInsertionProcessor {
         ).use { stmt ->
             var idx = 0
             data.forEach { str ->
-                str.forEach { col ->
+                str.forEachIndexed { colIdx, col ->
                     idx++
-                    stmt.setObject(idx, col)
+                    val value = if (col == null) columnTypes?.get(colIdx)?.let { typedNullValue(it) } else col
+                    stmt.setObject(idx, value, Types.OTHER)
                 }
             }
-            stmt.executeLargeUpdate()
+            stmt.executeUpdate()
         }
     }
 
@@ -191,17 +281,22 @@ abstract class AbstractBatchInsertionProcessor {
         tableName: String,
         columns: List<String>,
         data: List<Collection<Any?>>,
-        conn: Connection
+        conn: Connection,
+        columnTypes: List<String>? = null
     ) {
+        if (data.isEmpty()) return
 
-        val params = columns.joinToString(", ") { "?" }
+        val params = columns.mapIndexed { idx, _ ->
+            columnTypes?.get(idx)?.let { "CAST(? AS $it)" } ?: "?"
+        }.joinToString(", ")
 
         conn.prepareStatement(
             "INSERT INTO $tableName (${columns.joinToString(",")}) VALUES ($params);"
         ).use { stmt ->
             data.forEach { str ->
                 str.forEachIndexed { idx, col ->
-                    stmt.setObject(idx + 1, col)
+                    val value = if (col == null) columnTypes?.get(idx)?.let { typedNullValue(it) } else col
+                    stmt.setObject(idx + 1, value, Types.OTHER)
                 }
                 stmt.addBatch()
             }
@@ -237,7 +332,7 @@ abstract class AbstractBatchInsertionProcessor {
                 idx++
                 stmt.setArray(idx, stmt.connection.createArrayOf(pgTypes[idxCol], arr))
             }
-            stmt.executeLargeUpdate()
+            stmt.executeUpdate()
         }
 
     }
@@ -267,11 +362,12 @@ abstract class AbstractBatchInsertionProcessor {
      * @param conn - DB connection
      */
     fun updateDataToDataBase(tableName: String, columns: String, data: List<String>, conn: Connection) {
+        if (data.isEmpty()) return
 
         conn.createStatement().use { stmnt ->
-            stmnt.executeLargeUpdate(
+            stmnt.executeUpdate(
                 data.joinToString("\n") { s ->
-                    "UPDATE $tableName SET ($columns) = $s;"
+                    "UPDATE $tableName SET $s;"
                 }
             )
         }
@@ -283,18 +379,24 @@ abstract class AbstractBatchInsertionProcessor {
      * @param conn - DB connection
      */
     fun updateDataToDataBasePreparedStatement(dataForUpdate: DataForUpdate, conn: Connection): Int {
+        if (dataForUpdate.data.isEmpty()) return 0
 
         return conn.prepareStatement(
             "UPDATE ${dataForUpdate.tableName} SET ${dataForUpdate.columns.joinToString(", ") { "$it=?" }} where ${dataForUpdate.conditions.joinToString { "$it=? " }}"
         ).use { stmt ->
             dataForUpdate.data.forEach { str ->
                 str.forEachIndexed { idx, col ->
-                    stmt.setObject(idx + 1, col)
+                    stmt.setObject(idx + 1, col, Types.OTHER)
                 }
                 stmt.addBatch()
             }
-            stmt.executeBatch()
-        }.sumOf { it }
+            val results = stmt.executeBatch()
+            if (results.any { it == Statement.SUCCESS_NO_INFO }) {
+                dataForUpdate.data.size
+            } else {
+                results.sumOf { it }
+            }
+        }
 
     }
 }
